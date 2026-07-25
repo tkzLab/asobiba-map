@@ -234,6 +234,9 @@ const ORDER = ["koho","ikitai","itta"];
 
 /* ===== 永続化（同期対応スキーマ：records だけを保存。カタログとは分離） ===== */
 const KEY = "asobiba-map:v1";
+// 同期（フェーズ2）: Apps Script の /exec URL を入れると夫婦・複数端末で記録を共有。空ならこの端末だけに保存。
+const SYNC_URL = "";
+const SYNC_TOKEN = "ufSiDgxVTDE9D5_YR-uiaUXYVP0rs2TT";
 let store = {version:1, updatedAt:null, records:{}};
 function loadStore(){
   try{
@@ -253,6 +256,42 @@ function saveStore(){
     catch(e){ console.error("保存失敗", e); }
   },250);
 }
+/* ===== 同期（Sheets / Apps Script。GETで読み書き・WRITE_TOKEN保護） ===== */
+function pushRemote(id){
+  if(!SYNC_URL) return;
+  const r = store.records[id]; if(!r) return;
+  const q = new URLSearchParams({action:"setRecord", token:SYNC_TOKEN, id,
+    status:r.status||"", note:r.note||"", visitedAt:r.visitedAt||"", updatedAt:r.updatedAt||""});
+  fetch(SYNC_URL+"?"+q.toString()).catch(e=>console.warn("同期送信に失敗", e));
+}
+async function pullRemote(){
+  if(!SYNC_URL) return;
+  try{
+    const res = await fetch(SYNC_URL+"?action=getRecords");
+    const data = await res.json();
+    if(!data || !data.records) return;
+    let changed=false;
+    // リモートが新しければローカルを更新（updatedAtのISO文字列で比較）
+    Object.entries(data.records).forEach(([id,rr])=>{
+      const local = store.records[id];
+      const lu = (local && local.updatedAt) || "";
+      const ru = rr.updatedAt || "";
+      if(!local || ru>lu){
+        store.records[id] = {status:rr.status||"koho", note:rr.note||"", visitedAt:rr.visitedAt||null, updatedAt:rr.updatedAt||null};
+        changed=true;
+      }
+    });
+    // ローカルが新しい / リモート未登録なら送信（初回の移行を含む）
+    Object.entries(store.records).forEach(([id,lr])=>{
+      const rr = data.records[id];
+      const lu = lr.updatedAt || "";
+      const ru = (rr && rr.updatedAt) || "";
+      if(!rr || lu>ru) pushRemote(id);
+    });
+    if(changed){ saveStore(); renderFilters(); updateProgress(); renderList(); renderMarkers(); }
+  }catch(e){ console.warn("同期取得に失敗（オフライン？この端末の記録で表示します）", e); }
+}
+
 function recOf(id){ return store.records[id] || {status:"koho", note:"", visitedAt:null, updatedAt:null}; }
 function statusOf(id){ return (store.records[id] && store.records[id].status) || "koho"; }
 function setStatus(id, s){
@@ -262,12 +301,14 @@ function setStatus(id, s){
   r.updatedAt = new Date().toISOString();
   store.records[id] = r;
   saveStore();
+  pushRemote(id);
 }
 function setNote(id, text){
   const r = store.records[id] || {status:"koho", note:"", visitedAt:null, updatedAt:null};
   r.note = text; r.updatedAt = new Date().toISOString();
   store.records[id] = r;
   saveStore();
+  pushRemote(id);
 }
 
 /* ===== 状態 ===== */
@@ -422,6 +463,7 @@ function boot(){
   updateProgress();
   renderList();
   initMap();
+  pullRemote();
 }
 document.addEventListener("DOMContentLoaded", boot);
 </script>
