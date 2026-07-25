@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>あそびばマップ｜越谷まわりの室内あそび場</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{
+    --bg:#fef8ef;
+    --card:#ffffff;
+    --ink:#3a3230;
+    --sub:#8a807a;
+    --line:#efe4d4;
+    --accent:#ff8a3d;      /* たいよう オレンジ */
+    --accent-d:#ef6f1f;
+    --koho:#b7ada4;        /* 候補 グレー */
+    --ikitai:#ff9f43;      /* 行きたい オレンジ */
+    --itta:#4bbf73;        /* 行った グリーン */
+    --sky:#dff1f7;
+    --body:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    --round:16px;
+    --shadow:0 3px 10px rgba(120,90,50,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{overflow-x:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.6;-webkit-text-size-adjust:100%}
+
+  header{
+    background:linear-gradient(180deg,#ffb56b 0%,var(--accent) 100%);
+    color:#fff;padding:16px 16px 14px;text-align:center;
+    box-shadow:0 2px 8px rgba(200,120,40,.25);position:relative;z-index:5;
+  }
+  header .title{font-size:clamp(20px,5.4vw,26px);font-weight:800;letter-spacing:.04em;text-shadow:0 1px 0 rgba(0,0,0,.12)}
+  header .sub{font-size:12px;margin-top:2px;opacity:.95}
+
+  /* 達成バー */
+  .progress{margin:12px 14px 0;background:var(--card);border-radius:var(--round);
+    box-shadow:var(--shadow);padding:12px 14px;}
+  .progress .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .progress .word{font-weight:800;font-size:14px}
+  .progress .word small{font-weight:600;color:var(--sub);font-size:12px;margin-left:4px}
+  .progress .count{font-weight:800;color:var(--itta);font-size:15px;white-space:nowrap}
+  .bar{height:10px;border-radius:6px;background:#eee6db;margin-top:8px;overflow:hidden}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,#7dd39b,#4bbf73);border-radius:6px;transition:width .4s}
+
+  /* タブ */
+  .tabs{display:flex;gap:8px;margin:12px 14px 0}
+  .tabs button{flex:1;border:none;background:var(--card);color:var(--sub);font-weight:800;
+    font-size:15px;padding:11px 0;border-radius:12px 12px 0 0;box-shadow:var(--shadow);
+    cursor:pointer;border-bottom:3px solid transparent}
+  .tabs button.on{color:var(--accent-d);border-bottom-color:var(--accent);background:#fff}
+
+  /* フィルタ */
+  .filters{display:flex;gap:7px;overflow-x:auto;padding:11px 14px 3px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;border:1.5px solid var(--line);background:var(--card);color:var(--sub);
+    font-weight:700;font-size:13px;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap}
+  .chip .n{opacity:.7;font-size:12px;margin-left:3px}
+  .chip.on{color:#fff;border-color:transparent}
+  .chip.on[data-f="all"]{background:var(--accent)}
+  .chip.on[data-f="koho"]{background:var(--koho)}
+  .chip.on[data-f="ikitai"]{background:var(--ikitai)}
+  .chip.on[data-f="itta"]{background:var(--itta)}
+
+  main{max-width:720px;margin:0 auto;padding-bottom:30px}
+
+  /* 地図 */
+  #mapview{padding:10px 14px 0}
+  #map{height:60vh;min-height:340px;border-radius:var(--round);box-shadow:var(--shadow);
+    background:var(--sky);z-index:1}
+  .maphint{font-size:11.5px;color:var(--sub);text-align:center;margin:8px 4px 0}
+
+  /* Leaflet ピン */
+  .pin{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);box-shadow:0 2px 4px rgba(0,0,0,.3);border:2px solid #fff;font-size:15px}
+  .pin span{transform:rotate(45deg);line-height:1}
+  .leaflet-popup-content{margin:10px 12px;font-family:var(--body)}
+  .pop-name{font-weight:800;font-size:14px;margin-bottom:2px}
+  .pop-meta{font-size:12px;color:var(--sub);margin-bottom:7px}
+  .pop-go{display:inline-block;background:var(--accent);color:#fff;font-weight:700;font-size:12px;
+    padding:5px 12px;border-radius:8px;text-decoration:none;cursor:pointer}
+
+  /* リスト */
+  #listview{padding:6px 14px 0}
+  .card{background:var(--card);border-radius:var(--round);box-shadow:var(--shadow);
+    padding:14px 15px;margin-bottom:12px;border-left:6px solid var(--c,var(--koho));position:relative}
+  .card.flash{animation:flash 1.3s}
+  @keyframes flash{0%,100%{box-shadow:var(--shadow)}25%{box-shadow:0 0 0 3px var(--accent)}}
+  .card h3{font-size:16px;font-weight:800;line-height:1.35;padding-right:56px}
+  .badges{position:absolute;top:13px;right:13px;display:flex;gap:5px}
+  .badge{font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:999px}
+  .badge.indoor{background:#e7f0ff;color:#3d67c4}
+  .badge.outdoor{background:#e9f7e7;color:#4a9a3f}
+  .card .meta{font-size:12.5px;color:var(--sub);margin-top:3px}
+  .card .facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .fact{font-size:11.5px;background:#f7f0e6;color:#7a6f63;border-radius:8px;padding:3px 9px;font-weight:600}
+  .fact.dist{background:#fff0e4;color:var(--accent-d)}
+  .status-pick{display:flex;gap:6px;margin-top:11px}
+  .status-pick button{flex:1;border:1.5px solid var(--line);background:#fff;color:var(--sub);
+    font-weight:800;font-size:12.5px;padding:8px 0;border-radius:10px;cursor:pointer}
+  .status-pick button[data-s="koho"].on{background:var(--koho);border-color:transparent;color:#fff}
+  .status-pick button[data-s="ikitai"].on{background:var(--ikitai);border-color:transparent;color:#fff}
+  .status-pick button[data-s="itta"].on{background:var(--itta);border-color:transparent;color:#fff}
+  .card .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
+  .gmap{font-size:12.5px;color:var(--accent-d);font-weight:700;text-decoration:none;white-space:nowrap}
+  .memo{width:100%;margin-top:9px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;
+    font-family:var(--body);font-size:13px;resize:vertical;min-height:44px;background:#fffdf9;display:none}
+  .card.show-memo .memo{display:block}
+  .memo-label{font-size:11.5px;color:var(--itta);font-weight:700;margin-top:9px;display:none}
+  .card.show-memo .memo-label{display:block}
+
+  .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
+
+  footer{text-align:center;color:var(--sub);font-size:11px;padding:20px 16px 30px;line-height:1.7}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">🎈 あそびばマップ</div>
+  <div class="sub">越谷まわりの 室内あそび場｜行ったところ・つぎ行くところ</div>
+</header>
+
+<div class="progress">
+  <div class="row">
+    <div class="word" id="cheer">さあ、あそびに行こう！<small id="cheer-sub"></small></div>
+    <div class="count"><span id="itta-n">0</span> / <span id="total-n">0</span> か所</div>
+  </div>
+  <div class="bar"><i id="bar" style="width:0%"></i></div>
+</div>
+
+<div class="tabs">
+  <button id="tab-map" class="on" onclick="setView('map')">🗺️ 地図</button>
+  <button id="tab-list" onclick="setView('list')">📋 リスト</button>
+</div>
+
+<div class="filters" id="filters"></div>
+
+<main>
+  <section id="mapview">
+    <div id="map"></div>
+    <div class="maphint">ピンをタップすると、そのあそび場の情報が出ます</div>
+  </section>
+  <section id="listview" class="hide"></section>
+</main>
+
+<footer>
+  情報は目安です。営業時間・料金・対象年齢は各施設の公式サイトでご確認ください。<br>
+  地図データ © OpenStreetMap contributors
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ===== カタログ（遊び場マスタ：私が育てる。記録とは混ぜない） ===== */
+const CATALOG = [
+ {id:"vspark-laketown",name:"VS PARK イオンレイクタウンmori店",area:"越谷レイクタウン",addr:"越谷市レイクタウン3-1-1 mori 3F",lat:35.876217,lng:139.822401,indoor:true,ageMin:0,price:"",distKm:3.3,mapUrl:"https://www.google.com/maps/search/VS+PARK+イオンレイクタウンmori店"},
+ {id:"littleplanet-laketown",name:"リトルプラネット TSUTAYAレイクタウン",area:"越谷レイクタウン",addr:"越谷市レイクタウン4-2-2 kaze",lat:35.877117,lng:139.823301,indoor:true,ageMin:1,price:"時間制",distKm:3.3,mapUrl:"https://www.google.com/maps/search/リトルプラネット+TSUTAYAレイクタウン"},
+ {id:"wanpaku-laketown",name:"わんぱくフォレスト（無料）",area:"越谷レイクタウン",addr:"越谷市レイクタウン3-1-1 mori 3F",lat:35.875317,lng:139.823301,indoor:true,ageMin:1,price:"無料",distKm:3.3,mapUrl:"https://www.google.com/maps/search/わんぱくフォレスト（無料）"},
+ {id:"molly-laketown",name:"モーリーファンタジー イオンレイクタウン",area:"越谷レイクタウン",addr:"越谷市レイクタウン4-2-2 kaze",lat:35.877117,lng:139.821501,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:3.3,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+イオンレイクタウン"},
+ {id:"nicopa-soka",name:"NICOPA 草加舎人店",area:"草加",addr:"草加市遊馬町2-1 島忠ホームズ 1F",lat:35.81836,lng:139.770559,indoor:true,ageMin:0,price:"30分600円/フリー1000円",distKm:8.3,mapUrl:"https://www.google.com/maps/search/NICOPA+草加舎人店"},
+ {id:"round1-shinmisato",name:"ラウンドワン スポッチャ ららぽーと新三郷店",area:"三郷・新三郷",addr:"三郷市新三郷ららシティ3-1-1 2F",lat:35.859793,lng:139.865768,indoor:true,ageMin:2,price:"スポッチャ 小学生2190円〜",distKm:7.6,mapUrl:"https://www.google.com/maps/search/ラウンドワン+スポッチャ+ららぽーと新三郷店"},
+ {id:"thomas-shinmisato",name:"トーマスタウン新三郷",area:"三郷・新三郷",addr:"三郷市新三郷ららシティ3-1-1",lat:35.860693,lng:139.866668,indoor:true,ageMin:1,price:"乗り物・遊具",distKm:7.6,mapUrl:"https://www.google.com/maps/search/トーマスタウン新三郷"},
+ {id:"onpamido-yoshikawa",name:"オンパミード吉川美南店",area:"吉川",addr:"吉川市美南3-25-1 東街区1F",lat:35.867639,lng:139.858224,indoor:true,ageMin:0,price:"月額1980円〜",distKm:6.6,mapUrl:"https://www.google.com/maps/search/オンパミード吉川美南店"},
+ {id:"dbouldering-kasukabe",name:"Dボルダリング+リード春日部",area:"春日部",addr:"春日部市栄町1-451",lat:35.980074,lng:139.752079,indoor:true,ageMin:2,price:"体験2280円〜",distKm:10.5,mapUrl:"https://www.google.com/maps/search/Dボルダリング+リード春日部"},
+ {id:"molly-kasukabe",name:"モーリーファンタジー イオンモール春日部",area:"春日部",addr:"春日部市大枝香取178",lat:35.988005,lng:139.789076,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:10.8,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+イオンモール春日部"},
+ {id:"asobinoniwa-kuki",name:"あそびのにわ（久喜市屋内遊び場）",area:"久喜",addr:"久喜市桜田3-2-1 ヤオコー東鷲宮店2F",lat:36.089477,lng:139.679226,indoor:true,ageMin:0,price:"1人300円",distKm:24.2,mapUrl:"https://www.google.com/maps/search/あそびのにわ（久喜市屋内遊び場）"},
+ {id:"soyu-shobu",name:"ソユーひみつの森 菖蒲店",area:"久喜・菖蒲",addr:"久喜市菖蒲町菖蒲6005-1 1F",lat:36.074984,lng:139.611868,indoor:true,ageMin:0,price:"30分600円/フリー1200円",distKm:26.0,mapUrl:"https://www.google.com/maps/search/ソユーひみつの森+菖蒲店"},
+ {id:"molly-kawaguchi",name:"モーリーファンタジー アリオ川口",area:"川口",addr:"川口市並木元町1-79",lat:35.807253,lng:139.714246,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:11.6,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+アリオ川口"},
+ {id:"ninja-musashiurawa",name:"ニンジャ★パーク武蔵浦和",area:"さいたま・武蔵浦和",addr:"さいたま市南区別所7-6-1",lat:35.846101,lng:139.64816,indoor:true,ageMin:3,price:"忍者アスレチック",distKm:13.8,mapUrl:"https://www.google.com/maps/search/ニンジャ★パーク武蔵浦和"},
+ {id:"docodoco-stella",name:"屋内冒険の島 ドコドコ ステラタウン",area:"さいたま・宮原",addr:"さいたま市北区宮原町1-854-1",lat:35.933076,lng:139.623003,indoor:true,ageMin:1,price:"アスレチック",distKm:15.8,mapUrl:"https://www.google.com/maps/search/屋内冒険の島+ドコドコ+ステラタウン"},
+ {id:"kidokido-cocoon",name:"ボーネルンド キドキド コクーンシティ",area:"さいたま・大宮",addr:"さいたま市大宮区吉敷町4-263-1",lat:35.895671,lng:139.63498,indoor:true,ageMin:0,price:"ボーネルンド遊具",distKm:14.0,mapUrl:"https://www.google.com/maps/search/ボーネルンド+キドキド+コクーンシティ"},
+ {id:"railwaymuseum-omiya",name:"鉄道博物館",area:"さいたま・大宮",addr:"さいたま市大宮区大成町3-47",lat:35.921729,lng:139.617861,indoor:true,ageMin:1,price:"大人1600円/子ども",distKm:15.9,mapUrl:"https://www.google.com/maps/search/鉄道博物館"},
+ {id:"galaxcity-adachi",name:"ギャラクシティ",area:"東京・足立",addr:"足立区栗原1-3-1",lat:35.779406,lng:139.79077,indoor:true,ageMin:0,price:"無料〜（一部有料）",distKm:12.4,mapUrl:"https://www.google.com/maps/search/ギャラクシティ"},
+ {id:"molly-urawamisono",name:"モーリーファンタジー イオンモール浦和美園",area:"さいたま・浦和美園",addr:"さいたま市緑区大門3710-1",lat:35.89102,lng:139.731226,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:5.4,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+イオンモール浦和美園"},
+ {id:"asobono-dome",name:"アソボ〜ノ！（東京ドームシティ）",area:"東京・後楽園",addr:"文京区後楽1-3-61",lat:35.704961,lng:139.752559,indoor:true,ageMin:0,price:"こども930円〜",distKm:21.0,mapUrl:"https://www.google.com/maps/search/アソボ〜ノ！（東京ドームシティ）"},
+ {id:"kidokido-fujimi",name:"キドキド ららぽーと富士見店",area:"富士見",addr:"富士見市山室1-1313",lat:35.857424,lng:139.548254,indoor:true,ageMin:0,price:"ボーネルンド遊具",distKm:22.2,mapUrl:"https://www.google.com/maps/search/キドキド+ららぽーと富士見店"},
+ {id:"vspark-fujimi",name:"VS PARK ららぽーと富士見店",area:"富士見",addr:"富士見市山室1-1313",lat:35.858324,lng:139.549154,indoor:true,ageMin:6,price:"バラエティスポーツ",distKm:22.2,mapUrl:"https://www.google.com/maps/search/VS+PARK+ららぽーと富士見店"},
+ {id:"molly-kitatoda",name:"モーリーファンタジー イオンモール北戸田",area:"戸田",addr:"戸田市美女木東1-3-1",lat:35.825646,lng:139.65277,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:14.4,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+イオンモール北戸田"},
+ {id:"kidsusland-sengendai",name:"キッズユーエスランド せんげん台西口店",area:"越谷・せんげん台",addr:"越谷市千間台西1-1-1",lat:35.936318,lng:139.774718,indoor:true,ageMin:0,price:"時間制/フリーパス",distKm:5.2,mapUrl:"https://www.google.com/maps/search/キッズユーエスランド+せんげん台西口店"},
+];
+
+/* ===== ステータス定義 ===== */
+const STATUS = {
+  koho:   {label:"候補",    hex:"#b7ada4", emoji:"🅿️"},
+  ikitai: {label:"行きたい", hex:"#ff9f43", emoji:"⭐"},
+  itta:   {label:"行った",  hex:"#4bbf73", emoji:"✅"},
+};
+const ORDER = ["koho","ikitai","itta"];
+
+/* ===== 永続化（同期対応スキーマ：records だけを保存。カタログとは分離） ===== */
+const KEY = "asobiba-map:v1";
+let store = {version:1, updatedAt:null, records:{}};
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      if(p && p.records) store = {version:1, updatedAt:p.updatedAt||null, records:p.records};
+    }
+  }catch(e){ console.error("読み込み失敗", e); }
+}
+let saveTimer=null;
+function saveStore(){
+  store.updatedAt = new Date().toISOString();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    try{ localStorage.setItem(KEY, JSON.stringify(store)); }
+    catch(e){ console.error("保存失敗", e); }
+  },250);
+}
+function recOf(id){ return store.records[id] || {status:"koho", note:"", visitedAt:null, updatedAt:null}; }
+function statusOf(id){ return (store.records[id] && store.records[id].status) || "koho"; }
+function setStatus(id, s){
+  const r = store.records[id] || {status:"koho", note:"", visitedAt:null, updatedAt:null};
+  r.status = s;
+  if(s==="itta" && !r.visitedAt) r.visitedAt = new Date().toISOString();
+  r.updatedAt = new Date().toISOString();
+  store.records[id] = r;
+  saveStore();
+}
+function setNote(id, text){
+  const r = store.records[id] || {status:"koho", note:"", visitedAt:null, updatedAt:null};
+  r.note = text; r.updatedAt = new Date().toISOString();
+  store.records[id] = r;
+  saveStore();
+}
+
+/* ===== 状態 ===== */
+let curView = "map";     // map | list
+let curFilter = "all";   // all | koho | ikitai | itta
+let map=null, markerLayer=null;
+const markers = {};      // id -> marker
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function counts(){
+  const c={all:CATALOG.length,koho:0,ikitai:0,itta:0};
+  CATALOG.forEach(s=>{ c[statusOf(s.id)]++; });
+  return c;
+}
+function visible(s){ return curFilter==="all" || statusOf(s.id)===curFilter; }
+
+/* ===== 達成バー ===== */
+function updateProgress(){
+  const c = counts();
+  document.getElementById("itta-n").textContent = c.itta;
+  document.getElementById("total-n").textContent = CATALOG.length;
+  const pct = Math.round(c.itta/CATALOG.length*100);
+  document.getElementById("bar").style.width = pct+"%";
+  const cheer = document.getElementById("cheer");
+  const sub = document.getElementById("cheer-sub");
+  if(c.itta===0){ cheer.firstChild.textContent="さあ、あそびに行こう！"; sub.textContent=""; }
+  else if(c.itta<5){ cheer.firstChild.textContent="いいスタート！"; sub.textContent=`${c.itta}か所ぼうけんずみ`; }
+  else if(c.itta<12){ cheer.firstChild.textContent="どんどん探検中！"; sub.textContent=`${c.itta}か所ぼうけんずみ`; }
+  else if(c.itta<CATALOG.length){ cheer.firstChild.textContent="あそびマスターまであと少し！"; sub.textContent=`${c.itta}か所ぼうけんずみ`; }
+  else { cheer.firstChild.textContent="ぜんぶ制覇！すごい！🏆"; sub.textContent=""; }
+}
+
+/* ===== フィルタUI ===== */
+function renderFilters(){
+  const c = counts();
+  const defs=[["all","すべて"],["koho","候補"],["ikitai","行きたい"],["itta","行った"]];
+  document.getElementById("filters").innerHTML = defs.map(([f,label])=>
+    `<button class="chip ${curFilter===f?"on":""}" data-f="${f}" onclick="setFilter('${f}')">${label}<span class="n">${c[f]}</span></button>`
+  ).join("");
+}
+function setFilter(f){ curFilter=f; renderFilters(); renderList(); renderMarkers(); }
+
+/* ===== ビュー切替 ===== */
+function setView(v){
+  curView=v;
+  document.getElementById("tab-map").classList.toggle("on", v==="map");
+  document.getElementById("tab-list").classList.toggle("on", v==="list");
+  document.getElementById("mapview").classList.toggle("hide", v!=="map");
+  document.getElementById("listview").classList.toggle("hide", v==="map");
+  if(v==="map" && map){ setTimeout(()=>map.invalidateSize(), 60); }
+}
+
+/* ===== 地図 ===== */
+function pinIcon(id){
+  const s = statusOf(id);
+  const st = STATUS[s];
+  return L.divIcon({
+    className:"", iconSize:[30,30], iconAnchor:[15,29], popupAnchor:[0,-27],
+    html:`<div class="pin" style="background:${st.hex}"><span>${st.emoji}</span></div>`
+  });
+}
+function popupHtml(s){
+  return `<div class="pop-name">${esc(s.name)}</div>
+    <div class="pop-meta">${esc(s.area)}・越谷から約${s.distKm}km ｜ ${s.ageMin}歳〜</div>
+    <a class="pop-go" onclick="openInList('${s.id}')">くわしく見る →</a>`;
+}
+function initMap(){
+  map = L.map('map',{zoomControl:true, attributionControl:true}).setView([35.8912,139.7908], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19, attribution:'© OpenStreetMap'
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  CATALOG.forEach(s=>{
+    const m = L.marker([s.lat,s.lng],{icon:pinIcon(s.id)}).bindPopup(popupHtml(s));
+    markers[s.id]=m;
+  });
+  renderMarkers();
+  // 全ピンが入るように
+  const grp = L.featureGroup(Object.values(markers));
+  map.fitBounds(grp.getBounds().pad(0.12));
+}
+function renderMarkers(){
+  markerLayer.clearLayers();
+  CATALOG.forEach(s=>{
+    if(!visible(s)) return;
+    const m = markers[s.id];
+    m.setIcon(pinIcon(s.id));
+    m.setPopupContent(popupHtml(s));
+    markerLayer.addLayer(m);
+  });
+}
+function openInList(id){
+  setView('list');
+  renderList();
+  const card = document.getElementById("card-"+id);
+  if(card){
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+    card.classList.add("flash");
+    setTimeout(()=>card.classList.remove("flash"),1300);
+  }
+}
+
+/* ===== リスト ===== */
+function renderList(){
+  const wrap = document.getElementById("listview");
+  const rows = CATALOG.filter(visible).sort((a,b)=>a.distKm-b.distKm);
+  if(rows.length===0){
+    wrap.innerHTML = `<div class="empty">このカテゴリのあそび場はまだありません。<br>フィルタを「すべて」にしてみてね。</div>`;
+    return;
+  }
+  wrap.innerHTML = rows.map(s=>{
+    const r = recOf(s.id);
+    const st = STATUS[r.status];
+    const buttons = ORDER.map(k=>
+      `<button data-s="${k}" class="${r.status===k?"on":""}" onclick="onStatus('${s.id}','${k}')">${STATUS[k].emoji} ${STATUS[k].label}</button>`
+    ).join("");
+    const badge = s.indoor
+      ? `<span class="badge indoor">屋内</span>`
+      : `<span class="badge outdoor">屋外</span>`;
+    return `<div class="card ${r.status==="itta"?"show-memo":""}" id="card-${s.id}" style="--c:${st.hex}">
+      <div class="badges">${badge}</div>
+      <h3>${esc(s.name)}</h3>
+      <div class="meta">${esc(s.area)}｜${esc(s.addr)}</div>
+      <div class="facts">
+        <span class="fact dist">越谷から約${s.distKm}km</span>
+        <span class="fact">${s.ageMin}歳〜</span>
+        ${s.price?`<span class="fact">💴 ${esc(s.price)}</span>`:""}
+      </div>
+      <div class="status-pick">${buttons}</div>
+      <div class="foot">
+        <a class="gmap" href="${esc(s.mapUrl)}" target="_blank" rel="noopener">📍 Googleマップで開く ↗</a>
+      </div>
+      <div class="memo-label">🌟 行ったよ！おもいで・メモ</div>
+      <textarea class="memo" data-id="${s.id}" placeholder="たのしかったこと・持ち物・また行きたい？"
+        oninput="onMemo('${s.id}',this.value)">${esc(r.note||"")}</textarea>
+    </div>`;
+  }).join("");
+}
+function onStatus(id, s){
+  setStatus(id, s);
+  renderList(); renderMarkers(); renderFilters(); updateProgress();
+  // フィルタで消えないよう、現在カードへスクロール維持
+  const card = document.getElementById("card-"+id);
+  if(card && curFilter!=="all" && statusOf(id)!==curFilter){ /* filtered out; ok */ }
+}
+function onMemo(id, text){ setNote(id, text); updateProgress(); }
+
+/* ===== 起動 ===== */
+function boot(){
+  loadStore();
+  renderFilters();
+  updateProgress();
+  renderList();
+  initMap();
+}
+document.addEventListener("DOMContentLoaded", boot);
+</script>
+</body>
+</html>
