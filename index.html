@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>あそびばマップ｜越谷まわりの室内あそび場</title>
+<title>あそびばマップ｜越谷まわりのあそび場・おでかけ</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   :root{
@@ -119,7 +119,7 @@
 <body>
 <header>
   <div class="title">🎈 あそびばマップ</div>
-  <div class="sub">越谷まわりの 室内あそび場｜行ったところ・つぎ行くところ</div>
+  <div class="sub">越谷まわりの あそび場・おでかけ｜行ったところ・つぎ行くところ</div>
 </header>
 
 <div class="progress">
@@ -178,6 +178,14 @@ const CATALOG = [
  {id:"vspark-fujimi",name:"VS PARK ららぽーと富士見店",area:"富士見",addr:"富士見市山室1-1313",lat:35.858324,lng:139.549154,indoor:true,ageMin:6,price:"バラエティスポーツ",distKm:22.2,mapUrl:"https://www.google.com/maps/search/VS+PARK+ららぽーと富士見店"},
  {id:"molly-kitatoda",name:"モーリーファンタジー イオンモール北戸田",area:"戸田",addr:"戸田市美女木東1-3-1",lat:35.825646,lng:139.65277,indoor:true,ageMin:0,price:"遊具・アーケード",distKm:14.4,mapUrl:"https://www.google.com/maps/search/モーリーファンタジー+イオンモール北戸田"},
  {id:"kidsusland-sengendai",name:"キッズユーエスランド せんげん台西口店",area:"越谷・せんげん台",addr:"越谷市千間台西1-1-1",lat:35.936318,lng:139.774718,indoor:true,ageMin:0,price:"時間制/フリーパス",distKm:5.2,mapUrl:"https://www.google.com/maps/search/キッズユーエスランド+せんげん台西口店"},
+ // ── 有名施設（少し足をのばして）──
+ {id:"tobu-zoo",name:"東武動物公園",area:"宮代・東武動物公園",addr:"南埼玉郡宮代町須賀110",lat:36.02496,lng:139.726572,indoor:false,ageMin:0,price:"1日券 おとな2400円/こども",distKm:16.0,mapUrl:"https://www.google.com/maps/search/東武動物公園"},
+ {id:"tnm-ueno",name:"東京国立博物館",area:"東京・上野",addr:"台東区上野公園13-9",lat:35.719045,lng:139.775968,indoor:true,ageMin:3,price:"一般1000円/高校生以下無料",distKm:19.2,mapUrl:"https://www.google.com/maps/search/東京国立博物館"},
+ {id:"ueno-zoo",name:"恩賜上野動物園",area:"東京・上野",addr:"台東区上野公園9-83",lat:35.715343,lng:139.768896,indoor:false,ageMin:0,price:"一般600円/中学生以下無料",distKm:19.7,mapUrl:"https://www.google.com/maps/search/恩賜上野動物園"},
+ {id:"miraikan-odaiba",name:"日本科学未来館",area:"東京・お台場",addr:"江東区青海2-3-6",lat:35.619245,lng:139.776667,indoor:true,ageMin:3,price:"大人630円/18歳以下210円",distKm:30.3,mapUrl:"https://www.google.com/maps/search/日本科学未来館"},
+ {id:"kahaku-ueno",name:"国立科学博物館",area:"東京・上野",addr:"台東区上野公園7-20",lat:35.715899,lng:139.776688,indoor:true,ageMin:3,price:"一般630円/高校生以下無料",distKm:19.5,mapUrl:"https://www.google.com/maps/search/国立科学博物館"},
+ {id:"kidzania-toyosu",name:"キッザニア東京",area:"東京・豊洲",addr:"江東区豊洲2-4-9 ららぽーと豊洲3F",lat:35.65631,lng:139.791349,indoor:true,ageMin:3,price:"こども約4400円〜(変動)",distKm:26.1,mapUrl:"https://www.google.com/maps/search/キッザニア東京"},
+ {id:"kandu-makuhari",name:"カンドゥー（KANDU）",area:"千葉・幕張",addr:"千葉市美浜区豊砂1-1",lat:35.654683,lng:140.030455,indoor:true,ageMin:3,price:"こども約3400円〜",distKm:34.0,mapUrl:"https://www.google.com/maps/search/カンドゥー（KANDU）"},
 ];
 
 /* ===== ステータス定義 ===== */
