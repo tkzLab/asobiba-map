@@ -113,6 +113,17 @@
   .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
 
   footer{text-align:center;color:var(--sub);font-size:11px;padding:20px 16px 30px;line-height:1.7}
+  .howto{max-width:520px;margin:8px auto 4px;background:var(--card);border:1.5px solid var(--line);
+    border-radius:var(--round);box-shadow:var(--shadow);text-align:left;overflow:hidden}
+  .howto summary{list-style:none;cursor:pointer;padding:13px 16px;font-weight:800;font-size:14px;color:var(--accent-d)}
+  .howto summary::-webkit-details-marker{display:none}
+  .howto summary::after{content:"＋";float:right;color:var(--sub);font-weight:800}
+  .howto[open] summary::after{content:"−"}
+  .howto-body{padding:0 16px 15px;font-size:12.5px;color:var(--ink);line-height:1.75}
+  .howto-body ul{margin:8px 0 8px;padding-left:0;list-style:none}
+  .howto-body li{background:#fff6ec;border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:7px}
+  .howto-body b{color:var(--accent-d)}
+  .howto-body .cap{font-size:11.5px;color:var(--sub)}
   .hide{display:none!important}
 </style>
 </head>
@@ -145,6 +156,18 @@
   <section id="listview" class="hide"></section>
 </main>
 
+<details class="howto">
+  <summary>➕ あそび場をふやすには？（おまじない）</summary>
+  <div class="howto-body">
+    このマップは <b>Claude（クロード）に頼むと増やせます</b>。次のどれかを言うだけ👇
+    <ul>
+      <li>「<b>このURLを追加して</b>」＋ 気になった場所のURL・画像（インスタのまとめ投稿もOK）</li>
+      <li>「<b>越谷の室内あそび場、新しいの探して追加して</b>」（おまかせ探索）</li>
+      <li>「<b>〇〇（施設名）を追加して</b>」</li>
+    </ul>
+    <span class="cap">※ 追加は Claude が地図データを更新して反映します（このサイト自体に追加ボタンはありません）。住所は自動で調べてピン化します。</span>
+  </div>
+</details>
 <footer>
   情報は目安です。営業時間・料金・対象年齢は各施設の公式サイトでご確認ください。<br>
   地図データ © OpenStreetMap contributors
